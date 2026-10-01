@@ -1,0 +1,31 @@
+{
+  "name": "tsblackjack",
+  "version": "1.0.0",
+  "description": "blackjack en ts",
+  "main": "index.js",
+  "scripts": {
+    "start": "tsx src/console.ts",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/BanDich27/TSBlackjack.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/BanDich27/TSBlackjack/issues"
+  },
+  "homepage": "https://github.com/BanDich27/TSBlackjack#readme",
+  "devDependencies": {
+    "@types/node": "^26.6.3",
+    "@types/prompt-sync": "^4.2.3",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2"
+  },
+  "dependencies": {
+    "prompt-sync": "^4.2.0"
+  }
+}
