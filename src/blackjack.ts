@@ -86,18 +86,20 @@ function calcularValorMano(c: Carta[]): number {
 }
 
 function puedeDoblar(c: Carta[], apuesta: number, banco: number): boolean {
-    return c.length === 2 && [9, 10, 11].includes(calcularValorMano(c)) && (banco - apuesta*2 >= 0)
+    return c.length === 2 && [9, 10, 11].includes(calcularValorMano(c)) && banco >= apuesta
 }
 
 function puedeDividir(c: Carta[], apuesta: number, banco: number): boolean {
-    return c.length === 2 && (c[0]?.valor === c[1]?.valor) && (banco - apuesta*2 >= 0);
+    return c.length === 2 && (c[0]?.valor === c[1]?.valor) && banco >= apuesta;
 }
 
 function mostrarManoConsola(j: Carta[], c: Carta[]): void {
     console.log("Tu mano: ");
     j.forEach(e => console.log(e));
+    console.log(`Valor de tu mano: ${calcularValorMano(j)}`);
     console.log("Mano del crupier: ");
     c.forEach(e => console.log(e));
+    console.log(`Valor de la mano del crupier: ${calcularValorMano(c)}`);
 }
 
 async function pasarTurno(p: Partida): Promise<Partida> {
@@ -106,18 +108,23 @@ async function pasarTurno(p: Partida): Promise<Partida> {
     let numJugadas: number = 1;
     let apuesta: number = 0;
 
+    console.log(`Dinero disponible: €${p.dinero.toFixed(2)}`);
+
     // APOSTAR
     do {
-        respuesta = await rl.question('Introduce fichas de apuesta [' + FICHAS.join("/") + '] (\'v\' para continuar)');
+        respuesta = await rl.question(`Saldo: €${p.dinero.toFixed(2)}. Introduce fichas de apuesta [${FICHAS.join("/")}] ('v' para continuar): `);
 
         if (respuesta === 'v' && (apuesta <= 0)) {
             console.log("Introduce una apuesta válida");
-        } else if ((FICHAS.includes(respuesta as typeof FICHAS[number])) && (p.dinero - (Number(respuesta) + apuesta) >= 0)) {
+        } else if ((FICHAS.includes(respuesta as typeof FICHAS[number])) && (p.dinero >= Number(respuesta))) {
             apuesta += Number(respuesta);
             p.dinero -= Number(respuesta);
+            console.log(`Apuesta actual: €${apuesta.toFixed(2)}. Saldo restante: €${p.dinero.toFixed(2)}`);
         }
 
     } while (respuesta !== 'v' || apuesta <= 0)
+
+    console.log(`Apuesta realizada: €${apuesta.toFixed(2)}`);
 
     // REPARTO INICIAL
     if (p.mazo.length < 30) {
@@ -130,8 +137,10 @@ async function pasarTurno(p: Partida): Promise<Partida> {
     crupier.push(p.mazo.pop()!);
     jugador[0]!.push(p.mazo.pop()!);
     crupier.push(p.mazo.pop()!);
+    const blackjackInicial = calcularValorMano(jugador[0]!) === 21;
 
     for (let i = 0; i < numJugadas; i++) {
+        let apuestaMano = apuesta;
         if (i > 0) {
             console.log(`Mano ${i+1}:`);
         }
@@ -159,6 +168,8 @@ async function pasarTurno(p: Partida): Promise<Partida> {
                     } else {
                         jugador[i]!.push(p.mazo.pop()!);
                         p.dinero -= apuesta;
+                        apuestaMano += apuesta;
+                        console.log(`Doble apuesta: €${apuestaMano.toFixed(2)}. Saldo restante: €${p.dinero.toFixed(2)}`);
                         finJugada = true;
                         mostrarManoConsola(jugador[i]!, crupier);
                     }
@@ -169,7 +180,10 @@ async function pasarTurno(p: Partida): Promise<Partida> {
                     } else {
                         let c: Carta = jugador[i]!.pop()!
                         p.dinero -= apuesta;
-                        jugador.push([c]);
+                        console.log(`Apuesta para dividir: €${apuesta.toFixed(2)}. Saldo restante: €${p.dinero.toFixed(2)}`);
+                        jugador[i]!.push(p.mazo.pop()!);
+                        jugador.push([c, p.mazo.pop()!]);
+                        numJugadas++;
                         mostrarManoConsola(jugador[i]!, crupier);
                     }
                     break;
@@ -182,35 +196,41 @@ async function pasarTurno(p: Partida): Promise<Partida> {
 
         if (calcularValorMano(jugador[i]!) > 21) {
             console.log("Te has pasado de 21");
-            break;
+            console.log(`Saldo actual: €${p.dinero.toFixed(2)}`);
+            continue;
         }
 
         // CRUPIER
 
-        while (calcularValorMano(crupier) < Math.min(17, calcularValorMano(jugador[i]!))) {
-            crupier.push(p.mazo.pop()!);
+        while (calcularValorMano(crupier) < 17) {
+            const cartaCrupier = p.mazo.pop()!;
+            crupier.push(cartaCrupier);
+            console.log(`El crupier roba ${cartaCrupier.valor}${cartaCrupier.palo}. Mano del crupier: ${calcularValorMano(crupier)}`);
         }
 
         // DECISIÓN
 
-        if (calcularValorMano(jugador[i]!) === 21) {
-            if (calcularValorMano(crupier) === 21) {
+        if (blackjackInicial && i === 0) {
+            if (calcularValorMano(crupier) === 21 && crupier.length === 2) {
                 console.log("Empate");
                 p.dinero += apuesta;
-                console.log("Tienes " + p.dinero + " eurillos")
+                console.log(`Saldo actual: €${p.dinero.toFixed(2)}`);
             } else {
                 console.log("**BLACKJACK**");
-                p.dinero += apuesta * 2,5;
-                console.log("Tienes " + p.dinero + " eurillos")
+                p.dinero += apuestaMano * 2.5;
+                console.log(`Saldo actual: €${p.dinero.toFixed(2)}`);
             }
         } else if (calcularValorMano(crupier) < calcularValorMano(jugador[i]!) || calcularValorMano(crupier) > 21) {
             console.log("GANAS!!!!")
-            p.dinero += apuesta*2
-            console.log("Tienes " + p.dinero + " eurillos")
-        } else if ( calcularValorMano(crupier) === calcularValorMano(jugador[i]!)) {
+            p.dinero += apuestaMano * 2;
+            console.log(`Saldo actual: €${p.dinero.toFixed(2)}`);
+        } else if (calcularValorMano(crupier) === calcularValorMano(jugador[i]!) && !(calcularValorMano(crupier) === 21 && crupier.length === 2)) {
             console.log("Empate");
-            p.dinero += apuesta;
-            console.log("Tienes " + p.dinero + " eurillos")
+            p.dinero += apuestaMano;
+            console.log(`Saldo actual: €${p.dinero.toFixed(2)}`);
+        } else {
+            console.log("Gana el crupier");
+            console.log(`Saldo actual: €${p.dinero.toFixed(2)}`);
         }
 
 
